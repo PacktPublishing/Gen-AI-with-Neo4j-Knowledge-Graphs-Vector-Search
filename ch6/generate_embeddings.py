@@ -85,7 +85,7 @@ def store_embedding_in_neo4j(tmdbId, embedding):
 
 # Verify embeddings stored in Neo4j
 def verify_embeddings():
-    query = "MATCH (m:Movie) WHERE exists(m.embedding) RETURN m.title, m.embedding LIMIT 10"
+    query = "MATCH (m:Movie) WHERE m.embedding IS NOT NULL RETURN m.title, m.embedding LIMIT 10"
     with driver.session() as session:
         results = session.run(query)
         for record in results:
