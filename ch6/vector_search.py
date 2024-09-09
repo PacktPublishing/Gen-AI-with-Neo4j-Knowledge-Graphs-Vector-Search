@@ -1,8 +1,8 @@
 import os
 import time
-from haystack.document_stores.neo4j import Neo4jDocumentStore
+from neo4j_haystack import Neo4jDocumentStore
 from haystack.components.embedders import OpenAITextEmbedder
-from haystack.nodes import DenseRetriever
+from neo4j_haystack import Neo4jEmbeddingRetriever
 from haystack.utils.auth import Secret
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
@@ -44,18 +44,18 @@ def create_or_reset_vector_index():
         # Create a new vector index on the embedding property
         print("Creating new vector index")
         query_index = """
-        CREATE VECTOR INDEX overview_embeddings 
+        CREATE VECTOR INDEX `overview_embeddings` 
         FOR (m:Movie) ON (m.embedding)
         OPTIONS {indexConfig: {
-            vector.dimensions: 1536,  -- Number of dimensions for OpenAI embeddings
-            vector.similarity_function: 'cosine'}}
+            `vector.dimensions`: 1536,  
+            `vector.similarity_function`: 'cosine'}}
         """    
         session.run(query_index)
         print("Vector index created successfully")
 
 # Initialize Haystack Dense Retriever for vector search
 def initialize_dense_retriever(document_store, embedder):
-    retriever = DenseRetriever(
+    retriever = Neo4jEmbeddingRetriever(
         document_store=document_store,
         embedding_model=embedder
     )
