@@ -44,10 +44,8 @@ def retrieve_movie_plots():
         movies = [{"tmdbId": row["tmdbId"], "title": row["title"], "overview": row["overview"]} for row in results]
     return movies
 
-
-# Generate embeddings for movie plots using Haystack
-def generate_embeddings(embedder, movies):
-    embeddings = []  # List to store generated embeddings
+# Generate embeddings for movie plots using Haystack and store them immediately in Neo4j
+def generate_and_store_embeddings(embedder, movies):
     for movie in movies:
         title = movie.get("title", "Unknown Title")  # Fetch the movie title
         overview = str(movie.get("overview", ""))  # Ensure the overview is a string, use empty string as default
@@ -63,31 +61,27 @@ def generate_embeddings(embedder, movies):
         try:
             # Generate embedding for the current overview (pass overview as a string to the embedder)
             embedding_result = embedder.run(overview)  # Pass overview as a string
-            # Safely access the embedding from the result
-            embedding = embedding_result.get("embedding", None)  # Note: Singular 'embedding' might be the correct key
+            embedding = embedding_result.get("embedding", None)  # Safely access the embedding from the result
             
             if embedding:
-                embeddings.append(embedding)  # Append the result to the embeddings list
+                # Store the embedding in Neo4j immediately
+                tmdbId = movie["tmdbId"]
+                store_embedding_in_neo4j(tmdbId, embedding)
             else:
                 print(f"Failed to generate embedding for movie: {title}")
         except Exception as e:
             print(f"Error generating embedding for movie {title}: {e}")
-        
-    return embeddings
 
-
-# Store the embeddings back in Neo4j
-def store_embeddings_in_neo4j(movies, embeddings):
-    for movie, embedding in zip(movies, embeddings):
-        tmdbId = movie["tmdbId"]
-        query = """
-        MATCH (m:Movie {tmdbId: $tmdbId})
-        SET m.embedding = $embedding
-        """
-        with driver.session() as session:
-            # Convert embedding to a list (as Neo4j does not handle numpy arrays directly)
-            session.run(query, tmdbId=tmdbId, embedding=embedding.tolist())
-    print("Embeddings successfully stored in Neo4j.")
+# Store the embedding in Neo4j
+def store_embedding_in_neo4j(tmdbId, embedding):
+    query = """
+    MATCH (m:Movie {tmdbId: $tmdbId})
+    SET m.embedding = $embedding
+    """
+    with driver.session() as session:
+        # Directly store the embedding (no need for .tolist())
+        session.run(query, tmdbId=tmdbId, embedding=embedding)
+    print(f"Embedding for movie {tmdbId} successfully stored in Neo4j.")
 
 # Verify embeddings stored in Neo4j
 def verify_embeddings():
@@ -108,14 +102,10 @@ def main():
         print("No movies found in the Neo4j database.")
         return
 
-    # Step 3: Generate embeddings for movie plots
-    embeddings = generate_embeddings(embedder, movies)
-    print(f"Generated {len(embeddings)} embeddings.")
+    # Step 3: Generate embeddings for movie plots and store them immediately
+    generate_and_store_embeddings(embedder, movies)
 
-    # Step 4: Store embeddings in Neo4j
-    store_embeddings_in_neo4j(movies, embeddings)
-
-    # Step 5: Verify that embeddings are stored in Neo4j
+    # Step 4: Verify that embeddings are stored in Neo4j
     verify_embeddings()
 
 if __name__ == "__main__":
