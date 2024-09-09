@@ -37,7 +37,7 @@ def initialize_haystack():
 # Retrieve movie plots and titles from Neo4j
 def retrieve_movie_plots():
     # The query retrieves the "title", "overview", and "tmdbId" properties of each Movie node
-    query = "MATCH (m:Movie) RETURN m.tmdbId AS tmdbId, m.title AS title, m.overview AS overview"
+    query = "MATCH (m:Movie) WHERE m.embedding IS NULL RETURN m.tmdbId AS tmdbId, m.title AS title, m.overview AS overview"
     with driver.session() as session:
         results = session.run(query)
         # Each movie's title, plot (overview), and ID are retrieved and stored in the movies list
