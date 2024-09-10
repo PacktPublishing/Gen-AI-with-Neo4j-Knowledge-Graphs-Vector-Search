@@ -1,10 +1,9 @@
 import os
-import time
 import gradio as gr
-from haystack.document_stores.neo4j import Neo4jDocumentStore
-from haystack.components.embedders import OpenAITextEmbedder
-from haystack.nodes import DenseRetriever
-from haystack.utils.auth import Secret
+from neo4j_haystack import Neo4jDocumentStore, Neo4jDynamicDocumentRetriever
+from neo4j_haystack import Neo4jClientConfig
+from haystack import Pipeline
+from haystack.components.embedders import SentenceTransformersTextEmbedder
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
 
@@ -16,28 +15,15 @@ NEO4J_URI = os.getenv('NEO4J_URI')
 NEO4J_USER = os.getenv('NEO4J_USER')
 NEO4J_PASSWORD = os.getenv('NEO4J_PASSWORD')
 
-# OpenAI API key
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-
 # Initialize Neo4j driver
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-
-# Initialize Neo4j Document Store from Haystack
-def initialize_neo4j_document_store():
-    document_store = Neo4jDocumentStore(
-        url=NEO4J_URI,
-        username=NEO4J_USER,
-        password=NEO4J_PASSWORD,
-        index="movies_embeddings"  # Custom index name for movie embeddings
-    )
-    return document_store
 
 # Create or drop the vector index in Neo4j AuraDB
 def create_or_reset_vector_index():
     with driver.session() as session:
         try:
             # Drop the existing vector index if it exists
-            session.run("DROP INDEX IF EXISTS overview_embeddings")
+            session.run("DROP INDEX overview_embeddings IF EXISTS")
             print("Old index dropped")
         except:
             print("No index to drop")
@@ -45,78 +31,84 @@ def create_or_reset_vector_index():
         # Create a new vector index on the embedding property
         print("Creating new vector index")
         query_index = """
-        CREATE INDEX overview_embeddings 
+        CREATE VECTOR INDEX overview_embeddings IF NOT EXISTS
         FOR (m:Movie) ON (m.embedding)
         OPTIONS {indexConfig: {
-            vector.dimensions: 1536,  -- Number of dimensions for OpenAI embeddings
-            vector.similarity_function: 'cosine'}}
+            `vector.dimensions`: 384,  -- Adjust dimensions for the Sentence Transformers model
+            `vector.similarity_function`: 'cosine'}}
         """    
         session.run(query_index)
         print("Vector index created successfully")
 
-# Initialize Haystack Dense Retriever for vector search
-def initialize_dense_retriever(document_store, embedder):
-    retriever = DenseRetriever(
-        document_store=document_store,
-        embedding_model=embedder
+# Neo4j Client Configuration
+client_config = Neo4jClientConfig(
+    url=NEO4J_URI,
+    username=NEO4J_USER,
+    password=NEO4J_PASSWORD,
+    database="neo4j",
+)
+
+# Perform vector search using Haystack
+def perform_vector_search(query):
+    # Initialize Neo4j Document Store
+    document_store = Neo4jDocumentStore(
+        client_config=client_config,
+        index="overview_embeddings",  # The name of the Vector Index in Neo4j
+        node_label="Movie",  # Providing a label to Neo4j nodes which store Documents
+        embedding_dim=384,  # Adjusted dimension for Sentence Transformers
+        embedding_field="embedding",
+        similarity="cosine",  # Default similarity metric
+        progress_bar=False,
+        create_index_if_missing=False,
+        recreate_index=False,
+        write_batch_size=100,
+        verify_connectivity=True,  # Verifies connection to Neo4j instance
     )
-    return retriever
 
-# Fetch the movie title and actors from Neo4j for a given movie ID
-def fetch_movie_details_from_neo4j(movie_id):
-    with driver.session() as session:
-        query = """
-        MATCH (m:Movie {tmdbId: $movie_id})<-[:ACTED_IN]-(p:Person)
-        RETURN m.title AS title, collect(p.name) AS actors
-        """
-        result = session.run(query, movie_id=movie_id).single()
+    print(f"Documents count: {document_store.count_documents()}")
 
-        # Return the movie title and a list of actors
-        if result:
-            title = result["title"]
-            actors = result["actors"]
-            return title, actors
-        return None, None
+    # Initialize Text Embedder
+    text_embedder = SentenceTransformersTextEmbedder(model="sentence-transformers/all-MiniLM-L6-v2")
+    text_embedder.warm_up()
 
-# Perform vector search using Haystack and fetch movie details
-def perform_vector_search(retriever, query):
-    # Use the retriever to find movies with similar embeddings
-    results = retriever.retrieve(query)
+    # Step 1: Create embedding for the query
+    query_embedding = text_embedder.run(query).get("embedding")
+    
+    if query_embedding is None:
+        print("Query embedding not created successfully.")
+        return
+    
+    print("Query embedding created successfully.")
 
-    # Output the movie title and actors for each result
+    # Step 2: Search for similar documents using the query embedding
+    similar_documents = document_store.query_by_embedding(query_embedding, top_k=3)
+
+    if not similar_documents:
+        print("No similar documents found.")
+        return
+
+    print(f"Found {len(similar_documents)} similar documents.")
+    
+    # Step 3: Display results
     formatted_results = []
-    for result in results:
-        movie_id = result.meta['tmdbId']
-        title, actors = fetch_movie_details_from_neo4j(movie_id)
-        if title and actors:
-            formatted_results.append(f'Movie "{title}" played by {", ".join(actors)} actors')
+    for doc in similar_documents:
+        title = doc.meta.get("title", "N/A")
+        overview = doc.meta.get("overview", "N/A")
+        score = doc.score
+        formatted_results.append(f"Title: {title}\nOverview: {overview}\nScore: {score:.2f}\n{'-'*40}")
     
     return "\n".join(formatted_results)
 
 # Define the Gradio chatbot interface
 def chatbot(query):
-    # This function will connect to Haystack's dense retriever and perform a vector search
-    return perform_vector_search(retriever, query)
+    return perform_vector_search(query)
 
 # Main function to orchestrate the entire process
 def main():
-    # Step 1: Initialize Neo4j Document Store and OpenAI Embedder
-    document_store = initialize_neo4j_document_store()
-    
-    # Since embeddings are already generated in the previous section, we only initialize the embedder for vector search
-    embedder = OpenAITextEmbedder(
-        api_key=Secret.from_env_var("OPENAI_API_KEY"),
-        model="text-embedding-ada-002"
-    )
-
-    # Step 2: Create or reset vector index in Neo4j AuraDB
+    # Step 1: Create or reset vector index in Neo4j AuraDB
     create_or_reset_vector_index()
 
-    # Step 3: Initialize dense retriever for vector search
-    global retriever  # Make retriever available globally for the Gradio function
-    retriever = initialize_dense_retriever(document_store, embedder)
-
-    # Step 4: Launch Gradio chatbot interface
+    # Step 2: Launch Gradio chatbot interface
     gr.Interface(fn=chatbot, inputs="text", outputs="text", title="Movie Search Chatbot", description="Ask me about movies!").launch()
 
 if __name__ == "__main__":
