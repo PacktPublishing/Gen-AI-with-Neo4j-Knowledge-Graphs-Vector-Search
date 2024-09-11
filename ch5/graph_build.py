@@ -133,7 +133,7 @@ class CreateGraph:
             LOAD CSV WITH HEADERS FROM $csvFile AS row
             MATCH (m:Movie {tmdbId: toInteger(row.tmdbId)})  // Check if the movie exists
             WITH m, row
-            MERGE (p:Person {person_id: toInteger(row.crew_id), role: row.job})
+            MERGE (p:Person {crew_id: toInteger(row.crew_id), role: row.job})
             ON CREATE SET p.name = row.name, p.gender = toInteger(row.gender)
             WITH p, m, row
             CALL apoc.do.case([
