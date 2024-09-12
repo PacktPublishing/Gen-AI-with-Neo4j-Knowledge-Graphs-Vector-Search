@@ -25,13 +25,16 @@ class CreateGraph:
 
     def create_constraints_indexes(self):
         queries = [
-            "CREATE CONSTRAINT unique_movie_id IF NOT EXISTS FOR (m:Movie) REQUIRE m.tmdbId IS UNIQUE;",
+            "CREATE CONSTRAINT unique_tmdb_id IF NOT EXISTS FOR (m:Movie) REQUIRE m.tmdbId IS UNIQUE;",
+            "CREATE CONSTRAINT unique_movie_id IF NOT EXISTS FOR (m:Movie) REQUIRE m.movieId IS UNIQUE;",
             "CREATE CONSTRAINT unique_prod_id IF NOT EXISTS FOR (p:ProductionCompany) REQUIRE p.company_id IS UNIQUE;",
             "CREATE CONSTRAINT unique_genre_id IF NOT EXISTS FOR (g:Genre) REQUIRE g.genre_id IS UNIQUE;",
             "CREATE CONSTRAINT unique_lang_id IF NOT EXISTS FOR (l:SpokenLanguage) REQUIRE l.language_code IS UNIQUE;",
             "CREATE CONSTRAINT unique_country_id IF NOT EXISTS FOR (c:Country) REQUIRE c.country_code IS UNIQUE;",
             "CREATE INDEX actor_id IF NOT EXISTS FOR (p:Person) ON (p.actor_id);",
-            "CREATE INDEX crew_id IF NOT EXISTS FOR (p:Person) ON (p.crew_id);"
+            "CREATE INDEX crew_id IF NOT EXISTS FOR (p:Person) ON (p.crew_id);",
+            "CREATE INDEX movieId IF NOT EXISTS FOR (m:Movie) ON (m.movieId);",
+            "CREATE INDEX user_id IF NOT EXISTS FOR (p:Person) ON (p.user_id);"
         ]
         with self.driver.session() as session:
             for query in queries:
@@ -49,7 +52,6 @@ class CreateGraph:
         MERGE (m:Movie {{tmdbId: tmdbId}})
         ON CREATE SET m.title = coalesce(row.title, "None"),
                       m.original_title = coalesce(row.original_title, "None"),
-                      m.imdb_id = coalesce(row.imdb_id, "None"),
                       m.adult = CASE 
                                     WHEN toInteger(row.adult) = 1 THEN 'Yes' 
                                     ELSE 'No' 
@@ -149,7 +151,7 @@ class CreateGraph:
         """
         with self.driver.session() as session:
             session.run(query2)
-            print(f"Actors label created additionally")
+            print(f"Actor label created additionally")
 
     def load_person_crew(self, csv_file):
         query1 = """
@@ -175,39 +177,48 @@ class CreateGraph:
         """
         with self.driver.session() as session:
             session.run(query2)
-            print(f"Directors label created additionally")
+            print(f"Director label created additionally")
         query3 = """
         MATCH (n:Person) WHERE n.role="Producer" SET n:Producer
         """
         with self.driver.session() as session:
             session.run(query3)
-            print(f"Producers label created additionally")
+            print(f"Producer label created additionally")
 
 
-    # def load_links(self, csv_file):
-    #     query = """
-    #     LOAD CSV WITH HEADERS FROM $csvFile AS row
-    #     MATCH (m:Movie {tmdbId: toInteger(row.tmdbId)})  // Check if the movie exists
-    #     SET m.movieId = toInteger(row.movieId),
-    #         m.imdbId = row.imdbId;
-    #     """
-    #     with self.driver.session() as session:
-    #         session.run(query, csvFile=f'{csv_file}')
-    #         print(f"Links loaded from {csv_file}")
+    def load_links(self, csv_file):
+        query = """
+        LOAD CSV WITH HEADERS FROM $csvFile AS row
+        MATCH (m:Movie {tmdbId: toInteger(row.tmdbId)})  // Check if the movie exists
+        SET m.movieId = toInteger(row.movieId),
+            m.imdbId = row.imdbId;
+        """
+        with self.driver.session() as session:
+            session.run(query, csvFile=f'{csv_file}')
+            print(f"Links loaded from {csv_file}")
 
 
-    # def load_ratings(self, csv_file):
-    #     query = """
-    #     LOAD CSV WITH HEADERS FROM $csvFile AS row
-    #     MATCH (m:Movie {movieId: toInteger(row.movieId)})  // Check if the movie exists
-    #     WITH m, row
-    #     MERGE (p:Person {user_id: toInteger(row.userId), role: 'user'})
-    #     MERGE (p)-[r:RATED]->(m)
-    #     SET r.rating = toFloat(row.rating), r.timestamp = toInteger(row.timestamp);
-    #     """
-    #     with self.driver.session() as session:
-    #         session.run(query, csvFile=f'{csv_file}')
-    #         print(f"Ratings loaded from {csv_file}")
+    def load_ratings(self, csv_file):
+        query1 = """
+        LOAD CSV WITH HEADERS FROM $csvFile AS row
+        CALL (row){
+        MATCH (m:Movie {movieId: toInteger(row.movieId)})  // Check if the movie exists
+        WITH m, row
+        MERGE (p:Person {user_id: toInteger(row.userId)})
+        ON CREATE SET p.role= 'user'
+        MERGE (p)-[r:RATED]->(m)
+        ON CREATE SET r.rating = toFloat(row.rating), r.timestamp = toInteger(row.timestamp)
+        }IN TRANSACTIONS OF 50000 ROWS;
+        """
+        with self.driver.session() as session:
+            session.run(query1, csvFile=f'{csv_file}')
+            print(f"Ratings loaded from {csv_file}")
+        query2 = """
+        MATCH (n:Person) WHERE n.role="user" SET n:User
+        """
+        with self.driver.session() as session:
+            session.run(query2)
+            print(f"User label created additionally")
 
 
 
@@ -233,10 +244,8 @@ def main():
     graph.load_keywords('https://storage.googleapis.com/movies-packt/normalized_keywords.csv')
     graph.load_person_actors('https://storage.googleapis.com/movies-packt/normalized_cast.csv')
     graph.load_person_crew('https://storage.googleapis.com/movies-packt/normalized_crew.csv')
-    # graph.load_links('https://storage.googleapis.com/movies-packt/normalized_links_small.csv')
-    # graph.load_ratings('https://storage.googleapis.com/movies-packt/normalized_ratings_small.csv')
-    # graph.load_links('https://storage.googleapis.com/movies-packt/normalized_links.csv')
-    # graph.load_ratings('https://storage.googleapis.com/movies-packt/normalized_ratings.csv')
+    graph.load_links('https://storage.googleapis.com/movies-packt/normalized_links.csv')
+    graph.load_ratings('https://storage.googleapis.com/movies-packt/normalized_ratings_small.csv')
 
 
     graph.close()
