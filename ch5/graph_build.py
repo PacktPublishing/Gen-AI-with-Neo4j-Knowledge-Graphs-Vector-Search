@@ -233,7 +233,7 @@ def main():
     graph.create_constraints_indexes()
 
     # Load data from CSV files with a limit on entries for movies
-    movie_limit = 15000  # Limit only applied to movies
+    movie_limit = 10000  # Limit only applied to movies
     graph.load_movies('https://storage.googleapis.com/movies-packt/normalized_movies.csv', movie_limit)
 
     # Load related nodes and create relationships conditionally
