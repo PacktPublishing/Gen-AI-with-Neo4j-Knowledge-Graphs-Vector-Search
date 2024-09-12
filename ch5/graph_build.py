@@ -14,19 +14,30 @@ class CreateGraph:
     def close(self):
         self.driver.close()
 
-    def create_constraints(self):
+    def db_cleanup(self):
+        print("Doing Database Cleanup.")
+        query = """
+        MATCH (n) DETACH DELETE (n)
+        """
+        with self.driver.session() as session:
+            session.run(query)
+            print("Database Cleanup Done. Using blank database.")
+
+    def create_constraints_indexes(self):
         queries = [
-            "CREATE CONSTRAINT unique_movie_id IF NOT EXISTS FOR (m:Movie) REQUIRE m.tmdbId IS NODE KEY;",
-            "CREATE CONSTRAINT unique_person_id IF NOT EXISTS FOR (p:Person) REQUIRE p.person_id IS NODE KEY;",
-            "CREATE CONSTRAINT unique_prod_id IF NOT EXISTS FOR (p:ProductionCompany) REQUIRE p.company_id IS NODE KEY;",
-            "CREATE CONSTRAINT unique_genre_id IF NOT EXISTS FOR (g:Genre) REQUIRE g.genre_id IS NODE KEY;",
-            "CREATE CONSTRAINT unique_lang_id IF NOT EXISTS FOR (l:SpokenLanguage) REQUIRE l.language_code IS NODE KEY;",
-            "CREATE CONSTRAINT unique_country_id IF NOT EXISTS FOR (c:Country) REQUIRE c.country_code IS NODE KEY;"
+            "CREATE CONSTRAINT unique_movie_id IF NOT EXISTS FOR (m:Movie) REQUIRE m.tmdbId IS UNIQUE;",
+            "CREATE CONSTRAINT unique_prod_id IF NOT EXISTS FOR (p:ProductionCompany) REQUIRE p.company_id IS UNIQUE;",
+            "CREATE CONSTRAINT unique_genre_id IF NOT EXISTS FOR (g:Genre) REQUIRE g.genre_id IS UNIQUE;",
+            "CREATE CONSTRAINT unique_lang_id IF NOT EXISTS FOR (l:SpokenLanguage) REQUIRE l.language_code IS UNIQUE;",
+            "CREATE CONSTRAINT unique_country_id IF NOT EXISTS FOR (c:Country) REQUIRE c.country_code IS UNIQUE;",
+            "CREATE INDEX actor_id IF NOT EXISTS FOR (p:Person) ON (p.actor_id);",
+            "CREATE INDEX crew_id IF NOT EXISTS FOR (p:Person) ON (p.crew_id);"
         ]
         with self.driver.session() as session:
             for query in queries:
                 session.run(query)
-            print("Constraints created successfully.")
+            print("Constraints and Indexes created successfully.")
+
 
     def load_movies(self, csv_file, limit):
         query = f"""
@@ -118,34 +129,59 @@ class CreateGraph:
             session.run(query, csvFile=f'{csv_file}')
             print(f"Keywords loaded from {csv_file}")
 
-    def load_person(self, csv_file, role):
-        if role == "cast":
-            query = """
-            LOAD CSV WITH HEADERS FROM $csvFile AS row
-            MATCH (m:Movie {tmdbId: toInteger(row.tmdbId)})  // Check if the movie exists
-            WITH m, row
-            MERGE (p:Person {person_id: toInteger(row.actor_id), role: 'actor'})
-            ON CREATE SET p.name = row.name, p.gender = toInteger(row.gender)
-            MERGE (p)-[:ACTED_IN {character: coalesce(row.character, "None"), cast_id: toInteger(row.cast_id)}]->(m);
-            """
-        elif role == "crew":
-            query = """
-            LOAD CSV WITH HEADERS FROM $csvFile AS row
-            MATCH (m:Movie {tmdbId: toInteger(row.tmdbId)})  // Check if the movie exists
-            WITH m, row
-            MERGE (p:Person {crew_id: toInteger(row.crew_id), role: row.job})
-            ON CREATE SET p.name = row.name, p.gender = toInteger(row.gender)
-            WITH p, m, row
-            CALL apoc.do.case([
-                row.job = 'Director', 'MERGE (p)-[:DIRECTED]->(m)',
-                row.job = 'Producer', 'MERGE (p)-[:PRODUCED]->(m)'
-            ],
-            'RETURN p, m', {p:p, m:m}) YIELD value
-            RETURN value.p, value.m;
-            """
+    def load_person_actors(self, csv_file):
+        query1 = """
+        LOAD CSV WITH HEADERS FROM $csvFile AS row
+        CALL (row){
+        MATCH (m:Movie {tmdbId: toInteger(row.tmdbId)})  // Check if the movie exists
+        WITH m, row
+        MERGE (p:Person {actor_id: toInteger(row.actor_id)})
+        ON CREATE SET p.name = row.name, p.role= 'actor'
+        MERGE (p)-[a:ACTED_IN]->(m)
+        ON CREATE SET a.character = coalesce(row.character, "None"), a.cast_id= toInteger(row.cast_id)
+        }IN TRANSACTIONS OF 50000 ROWS;
+        """
         with self.driver.session() as session:
-            session.run(query, csvFile=f'{csv_file}')
-            print(f"People loaded from {csv_file} as {role}")
+            session.run(query1, csvFile=f'{csv_file}')
+            print(f"Actors loaded from {csv_file}")
+        query2 = """
+        MATCH (n:Person) WHERE n.role="actor" SET n:Actor
+        """
+        with self.driver.session() as session:
+            session.run(query2)
+            print(f"Actors label created additionally")
+
+    def load_person_crew(self, csv_file):
+        query1 = """
+        LOAD CSV WITH HEADERS FROM $csvFile AS row
+        MATCH (m:Movie {tmdbId: toInteger(row.tmdbId)})  // Check if the movie exists
+        MERGE (p:Person {crew_id: toInteger(row.crew_id)})
+        ON CREATE SET p.name = row.name, p.role = row.job
+        WITH p, m, row,
+        CASE
+        WHEN row.job='Director' THEN "DIRECTED"
+        WHEN row.job='Producer' THEN "PRODUCED"
+        ELSE "Unknown"
+        END AS crew_rel
+        CALL apoc.create.relationship(p, crew_rel, {}, m)
+        YIELD rel
+        RETURN rel;
+        """
+        with self.driver.session() as session:
+            session.run(query1, csvFile=f'{csv_file}')
+            print(f"Directors and Producers loaded from {csv_file}")
+        query2 = """
+        MATCH (n:Person) WHERE n.role="Director" SET n:Director
+        """
+        with self.driver.session() as session:
+            session.run(query2)
+            print(f"Directors label created additionally")
+        query3 = """
+        MATCH (n:Person) WHERE n.role="Producer" SET n:Producer
+        """
+        with self.driver.session() as session:
+            session.run(query3)
+            print(f"Producers label created additionally")
 
 
     # def load_links(self, csv_file):
@@ -182,7 +218,8 @@ def main():
 
     graph = CreateGraph(uri, user, password)
 
-    graph.create_constraints()
+    graph.db_cleanup()
+    graph.create_constraints_indexes()
 
     # Load data from CSV files with a limit on entries for movies
     movie_limit = 15000  # Limit only applied to movies
@@ -194,8 +231,8 @@ def main():
     graph.load_production_countries('https://storage.googleapis.com/movies-packt/normalized_production_countries.csv')
     graph.load_spoken_languages('https://storage.googleapis.com/movies-packt/normalized_spoken_languages.csv')
     graph.load_keywords('https://storage.googleapis.com/movies-packt/normalized_keywords.csv')
-    graph.load_person('https://storage.googleapis.com/movies-packt/normalized_cast.csv', role="cast")
-    graph.load_person('https://storage.googleapis.com/movies-packt/normalized_crew.csv', role="crew")
+    graph.load_person_actors('https://storage.googleapis.com/movies-packt/normalized_cast.csv')
+    graph.load_person_crew('https://storage.googleapis.com/movies-packt/normalized_crew.csv')
     # graph.load_links('https://storage.googleapis.com/movies-packt/normalized_links_small.csv')
     # graph.load_ratings('https://storage.googleapis.com/movies-packt/normalized_ratings_small.csv')
     # graph.load_links('https://storage.googleapis.com/movies-packt/normalized_links.csv')
