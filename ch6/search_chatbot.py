@@ -168,14 +168,11 @@ def perform_vector_search_cypher(query):
         }
     )
 
-    # # Print the raw result to debug
-    # print("Raw retriever result:", result)
-
-
     # Extracting documents from the retriever results
     documents = result["retriever"]["documents"]
 
-    # Step 3: Displaying results
+    result_output = ""
+
     for doc in documents:
         # Extract title and overview from document metadata
         title = doc.meta.get("title", "N/A")
@@ -188,7 +185,8 @@ def perform_vector_search_cypher(query):
         score_display = f"{score:.2f}" if score is not None else "N/A"
 
         # Print the title, overview, and score (or N/A for missing score)
-        print(f"Title: {title}\nOverview: {overview}\nScore: {score_display}\n{'-'*40}\n")
+        result_output += f"Title: {title}\nOverview: {overview}\nScore: {score_display}\n{'-'*40}\n"
+    return result_output
 
 
 # Define the Gradio chatbot interface
@@ -209,7 +207,7 @@ if __name__ == "__main__":
 
 # Define the Gradio chatbot interface
 def chatbot(query):
-    return perform_vector_search(query)
+    return perform_vector_search_cypher(query)
 
 # Main function to orchestrate the entire process
 def main():

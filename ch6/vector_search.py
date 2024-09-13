@@ -76,10 +76,6 @@ def perform_vector_search(query):
 
     print(f"Documents count: {document_store.count_documents()}")
 
-
-    # # Initialize document store (In-memory for now, but you can configure other stores)
-    # document_store = InMemoryDocumentStore()
-
     
     text_embedder = OpenAITextEmbedder(
         api_key=Secret.from_env_var("OPENAI_API_KEY"),
@@ -144,7 +140,6 @@ def perform_vector_search_cypher(query):
 
 
     retriever = Neo4jDynamicDocumentRetriever(
-        # client_config=client_config, runtime_parameters=["query_embedding"], doc_node_name="movie", verify_connectivity=True,
         client_config=client_config, runtime_parameters=["query_embedding"], compose_doc_from_result=True, verify_connectivity=True,
     )
 
@@ -163,14 +158,9 @@ def perform_vector_search_cypher(query):
         }
     )
 
-    # # Print the raw result to debug
-    # print("Raw retriever result:", result)
-
-
     # Extracting documents from the retriever results
     documents = result["retriever"]["documents"]
 
-    # Step 3: Displaying results
     for doc in documents:
         # Extract title and overview from document metadata
         title = doc.meta.get("title", "N/A")
