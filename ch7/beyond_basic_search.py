@@ -3,7 +3,7 @@ import openai
 from neo4j_haystack import Neo4jDocumentStore, Neo4jClientConfig, Neo4jEmbeddingRetriever
 from haystack.components.embedders import OpenAITextEmbedder
 from haystack.utils.auth import Secret
-from haystack import Pipeline
+from haystack import Pipeline, Document
 # from haystack.schema import Filter
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
@@ -31,7 +31,13 @@ def fetch_multi_hop_related_movies(title):
     """
     with driver.session() as session:
         result = session.run(query, title=title)
-        documents = [{"content": record["overview"], "meta": {"title": record["related_movie"]}} for record in result]
+        documents = [
+            Document(
+                content=record["overview"], 
+                meta={"title": record["related_movie"]}
+            ) 
+            for record in result
+        ]
     return documents
 
 # Initialize Neo4j Document Store and Haystack Components
