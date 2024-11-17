@@ -17,25 +17,27 @@ It is environmentally friendly and helps combat climate change.
 Solar panels require minimal maintenance and have a long lifespan.
 """
 
-# Combine query and retrieved passages into a task-specific input
-input_text = f"Answer this question based on the provided context: {query} Context: {retrieved_passages}"
+def generate_response(query, retrieved_passages):
+    # Combine query and retrieved passages into a task-specific input
+    input_text = f"Answer this question based on the provided context: {query} Context: {retrieved_passages}"
 
-# Tokenize the input with truncation and padding
-inputs = tokenizer(input_text, return_tensors='pt', padding=True, truncation=True, max_length=512).to(device)
+    # Tokenize the input with truncation and padding
+    inputs = tokenizer(input_text, return_tensors='pt', padding=True, truncation=True, max_length=512).to(device)
 
-# Generate a response
-with torch.no_grad():
-    outputs = model.generate(
-        **inputs,
-        max_length=300,  # Allow longer responses
-        num_beams=3,     # Use beam search for better results
-        early_stopping=True
-    )
+    # Generate a response
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_length=300,  # Allow longer responses
+            num_beams=3,     # Use beam search for better results
+            early_stopping=True
+        )
 
-# Decode the response
-response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    # Decode the response
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-# Print the results
+# Generate and print the response
+response = generate_response(query, retrieved_passages)
 print("Query:", query)
 print("Retrieved Passages:", retrieved_passages)
 print("Generated Response:", response)
