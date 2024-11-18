@@ -1,9 +1,9 @@
 from neo4j import GraphDatabase
 
 # Define the connection credentials for the Neo4j database
-uri = "neo4j+s://98397bd5.databases.neo4j.io"  # Replace with your Neo4j URI
+uri = "bolt://localhost:7687"  # Replace with your Neo4j URI
 username = "neo4j"             # Replace with your Neo4j username
-password = "E3lJKGBt6Xn32oiNQBhPmgVTJhomx_mh5ZbYslcX1P0"          # Replace with your Neo4j password
+password = "password"          # Replace with your Neo4j password
 
 # Create a driver instance to connect to the Neo4j database
 driver = GraphDatabase.driver(uri, auth=(username, password))
