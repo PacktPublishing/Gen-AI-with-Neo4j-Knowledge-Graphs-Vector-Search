@@ -54,7 +54,7 @@ public class ProcessRequest implements Runnable {
             Map<String, Object> embeddings = new HashMap<>() ;
 
             for( EncodeRequest request: dbData ) {
-                if (i % configuration.getBatchSize() == 0) {
+                if (i > 0 && i % configuration.getBatchSize() == 0) {
                     System.out.println("Saving Embeddings to Graph : " + i);
                     neo4jService.saveEmbeddings(embeddings);
                     embeddings.clear();
@@ -71,6 +71,7 @@ public class ProcessRequest implements Runnable {
                 System.out.println(embedding);
                 embeddings.put("id", id) ;
                 embeddings.put("embedding", embedding) ;
+                embeddings.put("summary", summary) ;
             }
 
             if( embeddings.size() > 0 ) {
