@@ -58,7 +58,7 @@ public class Neo4jService {
                 }
                 WITH sr, articles
                 RETURN elementId(sr) as elementId, articles
-                LIMIT 1000
+                LIMIT 2000
                 """ ;
 
         String cypher = String.format(cypherTemplate, startSeason, endSeason) ;
@@ -93,6 +93,8 @@ public class Neo4jService {
             UNWIND $data as row
             WITH row
             MATCH ()-[r]->() WHERE elementId(r) = row.id
+            SET r.summary = row.summary
+            WITH row, r
             CALL db.create.setRelationshipVectorProperty(r, 'embedding', row.embedding)
         """ ;
         SessionConfig config = SessionConfig.builder().withDatabase(configuration.getDatabase()).build() ;
