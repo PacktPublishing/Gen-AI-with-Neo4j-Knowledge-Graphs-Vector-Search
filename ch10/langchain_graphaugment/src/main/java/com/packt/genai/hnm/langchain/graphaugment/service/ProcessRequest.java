@@ -55,7 +55,7 @@ public class ProcessRequest implements Runnable {
             List<Map<String, Object>> embeddings = new ArrayList<>() ;
 
             for( EncodeRequest request: dbData ) {
-                if (i % configuration.getBatchSize() == 0) {
+                if (i > 0 && i % configuration.getBatchSize() == 0) {
                     System.out.println("Saving Embeddings to Graph : " + i);
                     neo4jService.saveEmbeddings(embeddings);
                     embeddings.clear();
@@ -71,6 +71,7 @@ public class ProcessRequest implements Runnable {
                 Embedding embedding = embeddingModelService.generateEmbedding(summary);
                 embedMap.put("id", id);
                 embedMap.put("embedding", embedding.vector());
+                embedMap.put("summary", summary);
                 embeddings.add(embedMap);
             }
 
