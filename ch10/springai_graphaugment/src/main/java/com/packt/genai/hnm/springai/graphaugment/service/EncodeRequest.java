@@ -1,19 +1,19 @@
 package com.packt.genai.hnm.springai.graphaugment.service;
 
 public class EncodeRequest {
-    private long id ;
+    private String id ;
     private String text ;
 
-    public EncodeRequest(String text, long id) {
+    public EncodeRequest(String text, String id) {
         this.text = text;
         this.id = id;
     }
 
-    public long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(String id) {
         this.id = id;
     }
 

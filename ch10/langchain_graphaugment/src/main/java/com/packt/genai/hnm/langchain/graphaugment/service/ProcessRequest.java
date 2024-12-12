@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ProcessRequest implements Runnable {
+public class ProcessRequest implements Runnable, IRequest {
     private OpenAIChatService chatService ;
     private OpenAIEmbeddingModelService embeddingModelService ;
     private Neo4jService neo4jService ;

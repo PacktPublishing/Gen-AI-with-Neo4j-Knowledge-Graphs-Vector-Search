@@ -5,6 +5,12 @@ import org.springframework.context.annotation.Configuration;
 
 @ConfigurationProperties(prefix = "neo4j")
 public class Neo4jConfiguration {
+
+    private String uri;
+    private String user ;
+    private String password ;
+    private String database ;
+
     public String getUri() {
         return uri;
     }
@@ -37,8 +43,5 @@ public class Neo4jConfiguration {
         this.database = database;
     }
 
-    private String uri;
-    private String user ;
-    private String password ;
-    private String database ;
+
 }

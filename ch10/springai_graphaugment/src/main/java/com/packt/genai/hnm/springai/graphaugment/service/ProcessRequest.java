@@ -2,11 +2,12 @@ package com.packt.genai.hnm.springai.graphaugment.service;
 
 import com.packt.genai.hnm.springai.graphaugment.config.RunConfiguration;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ProcessRequest implements Runnable {
+public class ProcessRequest implements Runnable, IRequest {
     private OpenAIChatService chatService ;
     private OpenAIEmbeddingModelService embeddingModelService ;
     private Neo4jService neo4jService ;
@@ -51,7 +52,7 @@ public class ProcessRequest implements Runnable {
             int i = 0 ;
             int processingSize = dbData.size() ;
 
-            Map<String, Object> embeddings = new HashMap<>() ;
+            List<Map<String, Object>> embeddings = new ArrayList<>() ;
 
             for( EncodeRequest request: dbData ) {
                 if (i > 0 && i % configuration.getBatchSize() == 0) {
@@ -62,16 +63,18 @@ public class ProcessRequest implements Runnable {
                 }
                 i++;
 
-                long id = request.getId() ;
+                Map<String, Object> embedMap = new HashMap<>();
+
+                String id = request.getId() ;
                 System.out.println("Retrieving Summary");
                 String summary = chatService.getSummaryText(request.getText()) ;
                 System.out.println(summary);
                 System.out.println("Retrieving embedding");
                 float[] embedding = embeddingModelService.generateEmbedding(summary) ;
-                System.out.println(embedding);
-                embeddings.put("id", id) ;
-                embeddings.put("embedding", embedding) ;
-                embeddings.put("summary", summary) ;
+                embedMap.put("id", id);
+                embedMap.put("embedding", embedding);
+                embedMap.put("summary", summary);
+                embeddings.add(embedMap);
             }
 
             if( embeddings.size() > 0 ) {

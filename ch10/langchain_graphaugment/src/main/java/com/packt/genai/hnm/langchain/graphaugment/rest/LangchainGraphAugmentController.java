@@ -2,10 +2,7 @@ package com.packt.genai.hnm.langchain.graphaugment.rest;
 
 import com.packt.genai.hnm.langchain.graphaugment.config.Neo4jConfiguration;
 import com.packt.genai.hnm.langchain.graphaugment.config.RunConfiguration;
-import com.packt.genai.hnm.langchain.graphaugment.service.Neo4jService;
-import com.packt.genai.hnm.langchain.graphaugment.service.OpenAIChatService;
-import com.packt.genai.hnm.langchain.graphaugment.service.OpenAIEmbeddingModelService;
-import com.packt.genai.hnm.langchain.graphaugment.service.ProcessRequest;
+import com.packt.genai.hnm.langchain.graphaugment.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -32,7 +29,7 @@ public class LangchainGraphAugmentController {
     @Autowired
     private RunConfiguration configuration ;
 
-    private HashMap<String, ProcessRequest> currentRequests = new HashMap<>() ;
+    private HashMap<String, IRequest> currentRequests = new HashMap<>() ;
 
     @GetMapping("/augment/{startSeason}/{endSeason}")
     public String processAugment(
@@ -54,10 +51,24 @@ public class LangchainGraphAugmentController {
         return uuid ;
     }
 
+    @GetMapping("/augmentArticles")
+    public String processAugmentArticles() {
+        String uuid = UUID.randomUUID().toString() ;
+        ProcessArticles request = new ProcessArticles(
+                embeddingModelService,
+                neo4jService,
+                configuration
+        ) ;
+        currentRequests.put(uuid, request) ;
+        Thread t = new Thread(request) ;
+        t.start();
+        return uuid ;
+    }
+
     @GetMapping("/augment/status/{requestId}")
     public String getStatus(
             @PathVariable (value="requestId") String requestId) {
-        ProcessRequest request = currentRequests.get(requestId) ;
+        IRequest request = currentRequests.get(requestId) ;
 
         if( request != null ) {
             if( request.isComplete() ) {

@@ -54,10 +54,6 @@ public class OpenAIChatService {
     }
 
     public String getSummaryText(String input) {
-//        String out = assistant.chat(input) ;
-//        return out ;
-//        var systemMessage = new SystemPromptTemplate(SYSTEM_PROMPT_TEMPLATE)
-//                .createMessage(Map.of("data", input));
         ChatResponse response = chatClient
                 .prompt()
                 .system(SYSTEM_PROMPT_TEMPLATE)

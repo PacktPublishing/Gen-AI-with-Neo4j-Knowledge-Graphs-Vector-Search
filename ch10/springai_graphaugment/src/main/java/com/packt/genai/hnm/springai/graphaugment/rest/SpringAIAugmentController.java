@@ -1,10 +1,7 @@
 package com.packt.genai.hnm.springai.graphaugment.rest;
 
 import com.packt.genai.hnm.springai.graphaugment.config.RunConfiguration;
-import com.packt.genai.hnm.springai.graphaugment.service.Neo4jService;
-import com.packt.genai.hnm.springai.graphaugment.service.OpenAIChatService;
-import com.packt.genai.hnm.springai.graphaugment.service.OpenAIEmbeddingModelService;
-import com.packt.genai.hnm.springai.graphaugment.service.ProcessRequest;
+import com.packt.genai.hnm.springai.graphaugment.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -31,7 +28,7 @@ public class SpringAIAugmentController {
     @Autowired
     private OpenAIEmbeddingModelService embeddingModelService ;
 
-    private HashMap<String, ProcessRequest> currentRequests = new HashMap<>() ;
+    private HashMap<String, IRequest> currentRequests = new HashMap<>() ;
 
     @GetMapping("/augment/{startSeason}/{endSeason}")
     public String processAugment(
@@ -53,10 +50,24 @@ public class SpringAIAugmentController {
         return uuid ;
     }
 
+    @GetMapping("/augmentArticles")
+    public String processAugmentArticles() {
+        String uuid = UUID.randomUUID().toString() ;
+        ProcessArticles request = new ProcessArticles(
+                embeddingModelService,
+                neo4jService,
+                configuration
+        ) ;
+        currentRequests.put(uuid, request) ;
+        Thread t = new Thread(request) ;
+        t.start();
+        return uuid ;
+    }
+
     @GetMapping("/augment/status/{requestId}")
     public String getStatus(
             @PathVariable (value="requestId") String requestId) {
-        ProcessRequest request = currentRequests.get(requestId) ;
+        IRequest request = currentRequests.get(requestId) ;
 
         if( request != null ) {
             if( request.isComplete() ) {
