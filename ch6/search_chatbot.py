@@ -45,7 +45,7 @@ client_config = Neo4jClientConfig(
     database="neo4j",
 )
 
-# Conversational chatbot handler using Cypher-powered search
+# Conversational chatbot handler using Cypher-powered search and Haystack
 def perform_vector_search_cypher(user_input):
     print("🔍 MESSAGES RECEIVED:", user_input)
 
@@ -99,12 +99,12 @@ def perform_vector_search_cypher(user_input):
 
     return reply.strip()
 
-def conversational_chatbot(user_input):
+def chatbot(user_input):
     return perform_vector_search_cypher(user_input)
 
 # Gradio Chat Interface setup
 chat_interface = gr.Interface(
-    fn=conversational_chatbot, 
+    fn=chatbot, 
     inputs=gr.Textbox(
         placeholder="What kind of movie would you like to watch?",
         lines=3,
@@ -117,11 +117,11 @@ chat_interface = gr.Interface(
     title="AI Movie Recommendation System",
     description="Ask me about movies! I can recommend movies based on your preferences.",
     examples=[
-        ["I want to watch a sci-fi movie with time travel"],
-        ["Recommend me a romantic comedy with a happy ending"],
-        ["I'm in the mood for something with superheroes but not too serious"],
-        ["I want a thriller that keeps me on the edge of my seat"],
-        ["Show me movies about artificial intelligence taking over the world"]
+        ["Show me movies about organized crime."],
+        ["Find films with space exploration."],
+        ["Which movies involve AI or robots?"],
+        ["List some romantic comedies."],
+        ["Tell me a movie where a kid becomes a wizard."]
     ],
     flagging_mode="never"
 )
