@@ -3,10 +3,7 @@ import openai
 from neo4j_haystack import Neo4jDocumentStore, Neo4jDynamicDocumentRetriever, Neo4jClientConfig
 from haystack.components.embedders import OpenAITextEmbedder
 from haystack.utils.auth import Secret
-from haystack import GeneratedAnswer, Document, Pipeline
-from haystack.components.builders.answer_builder import AnswerBuilder
-from haystack.components.builders.prompt_builder import PromptBuilder
-from haystack.components.generators import OpenAIGenerator
+from haystack import Pipeline
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
 
