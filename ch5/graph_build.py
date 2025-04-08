@@ -224,7 +224,7 @@ class CreateGraph:
 
 def main():
     uri = os.getenv('NEO4J_URI')
-    user = os.getenv('NEO4J_USER')
+    user = os.getenv('NEO4J_USERNAME')
     password = os.getenv('NEO4J_PASSWORD')
 
     graph = CreateGraph(uri, user, password)
