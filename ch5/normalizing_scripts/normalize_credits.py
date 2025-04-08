@@ -1,5 +1,11 @@
 import pandas as pd
 import ast
+import os
+
+# Ensure the output directory exists
+output_dir = "normalized_data"
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 
 # Load the CSV file
 df = pd.read_csv('./raw_data/credits.csv')
@@ -40,8 +46,8 @@ df_cast_normalized['tmdbId'] = df_cast.reset_index(drop=True)['id']
 df_crew_normalized['tmdbId'] = df_crew.reset_index(drop=True)['id']
 
 # Save the normalized data with the updated column names
-df_cast_normalized.to_csv('./normalized_data/normalized_cast.csv', index=False)
-df_crew_normalized.to_csv('./normalized_data/normalized_crew.csv', index=False)
+df_cast_normalized.to_csv(os.path.join(output_dir, 'normalized_cast.csv'), index=False)
+df_crew_normalized.to_csv(os.path.join(output_dir, 'normalized_crew.csv'), index=False)
 
 # Display a sample of the output for verification
 print("Sample of normalized cast data:")

@@ -1,5 +1,11 @@
 import pandas as pd
 import ast
+import os
+
+# Ensure the output directory exists
+output_dir = "normalized_data"
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 
 # Load the CSV file
 df = pd.read_csv('./raw_data/keywords.csv')  # Update the path as necessary
@@ -23,7 +29,7 @@ df_keywords_aggregated = df.groupby('id', as_index=False).agg({'keywords': lambd
 df_keywords_aggregated.rename(columns={'id': 'tmdbId'}, inplace=True)
 
 # Save the aggregated DataFrame to a new CSV file
-df_keywords_aggregated.to_csv('./normalized_data/normalized_keywords.csv', index=False)
+df_keywords_aggregated.to_csv(os.path.join(output_dir, 'normalized_keywords.csv'), index=False)
 
 # Display the first few rows of the aggregated DataFrame for verification
 print(df_keywords_aggregated.head())

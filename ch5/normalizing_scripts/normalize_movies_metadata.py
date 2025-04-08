@@ -1,5 +1,12 @@
 import pandas as pd
 import ast
+import os
+
+
+# Ensure the output directory exists
+output_dir = "normalized_data"
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 
 # Load the CSV file
 df = pd.read_csv('./raw_data/movies_metadata.csv')  # Update the path as necessary
@@ -73,10 +80,10 @@ df_companies_normalized['company_id'] = df_companies_normalized['company_id'].as
 df_genres_normalized['genre_id'] = df_genres_normalized['genre_id'].astype(int)
 
 # Save the normalized data with the updated column names
-df_genres_normalized.to_csv('./normalized_data/normalized_genres.csv', index=False)
-df_companies_normalized.to_csv('./normalized_data/normalized_production_companies.csv', index=False)
-df_countries_normalized.to_csv('./normalized_data/normalized_production_countries.csv', index=False)
-df_languages_normalized.to_csv('./normalized_data/normalized_spoken_languages.csv', index=False)
+df_genres_normalized.to_csv(os.path.join(output_dir, 'normalized_genres.csv'), index=False)
+df_companies_normalized.to_csv(os.path.join(output_dir, 'normalized_production_companies.csv'), index=False)
+df_countries_normalized.to_csv(os.path.join(output_dir, 'normalized_production_countries.csv'), index=False)
+df_languages_normalized.to_csv(os.path.join(output_dir, 'normalized_spoken_languages.csv'), index=False)
 
 # For the movies, including "Belongs to Collection" within the same CSV
 # Extract only the "name" from "belongs_to_collection" and include additional fields
