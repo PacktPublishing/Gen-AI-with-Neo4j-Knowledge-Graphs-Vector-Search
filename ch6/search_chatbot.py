@@ -16,7 +16,7 @@ load_dotenv()
 
 # Neo4j connection details
 NEO4J_URI = os.getenv('NEO4J_URI')
-NEO4J_USER = os.getenv('NEO4J_USER')
+NEO4J_USERNAME = os.getenv('NEO4J_USERNAME')
 NEO4J_PASSWORD = os.getenv('NEO4J_PASSWORD')
 
 # OpenAI API key
@@ -24,7 +24,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 openai.api_key = OPENAI_API_KEY
 
 # Initialize Neo4j driver
-driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
 # Create or drop the vector index in Neo4j AuraDB
 def create_or_reset_vector_index():
@@ -50,7 +50,7 @@ def create_or_reset_vector_index():
 
 client_config = Neo4jClientConfig(
     url=NEO4J_URI,
-    username=NEO4J_USER,
+    username=NEO4J_USERNAME,
     password=NEO4J_PASSWORD,
     database="neo4j",
 )
