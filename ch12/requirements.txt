@@ -1,0 +1,6 @@
+haystack-ai==2.5.0 
+openai==1.67.0 
+gradio==4.44.1 
+python-dotenv>=1.0.0 
+neo4j==5.25.0
+neo4j-haystack==2.0.3
