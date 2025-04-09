@@ -125,10 +125,6 @@ chat_interface = gr.Interface(
     ],
     flagging_mode="never"
 )
-# Main
-def main():
-    create_or_reset_vector_index()
-    chat_interface.launch()
 
-if __name__ == "__main__":
-    main()
+create_or_reset_vector_index()
+chat_interface.launch(server_name="0.0.0.0", server_port=8080)
