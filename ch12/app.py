@@ -123,7 +123,6 @@ chat_interface = gr.Interface(
         ["List some romantic comedies."],
         ["Tell me a movie where a kid becomes a wizard."]
     ],
-    flagging_mode="never"
 )
 
 create_or_reset_vector_index()
