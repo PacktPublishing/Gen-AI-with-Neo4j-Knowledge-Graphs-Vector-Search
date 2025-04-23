@@ -1,1 +1,1 @@
-# Gen-AI-with-Neo4j-Knowledge-Graphs-Vector-Search
+# Building Neo4j-Powered Applications with LLMs
