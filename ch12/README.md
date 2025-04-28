@@ -13,6 +13,7 @@ haystack-cloud-app/
 ├── Dockerfile
 ├── .env
 ├── 
+```
 
 ## Dependencies
 
